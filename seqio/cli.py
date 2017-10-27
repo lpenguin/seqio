@@ -6,6 +6,19 @@ from Bio import SeqIO, SeqRecord
 from itertools import islice
 
 
+def count(xs):
+    return sum(1 for x in xs)
+
+
+def mean(xs):
+    s = 0
+    c = 0
+    for x in xs:
+        s += x
+        c += 1
+    return s / c
+
+
 class SeqRecordWrapper(object):
     def __init__(self):
         self._r = None  # type: SeqRecord.SeqRecord
@@ -14,12 +27,15 @@ class SeqRecordWrapper(object):
     @lru_cache(100)
     def _func_by_name(name):
         if name == '_':
-            return lambda self: self
-        if name in {'id', 'name', 'description', 'seq'}:
+            return lambda self: self._r
+        if name == 'quality':
+            return lambda self: self._r.letter_annotations['phred_quality']
+        if name in {'id', 'name', 'description', 'seq', 'letter_annotations', 'features'}:
             return lambda self: getattr(self._r, name)
         if name == 'length':
             return lambda self: len(self._r)
-        raise ValueError(name)
+
+        raise KeyError
 
     def __getitem__(self, name):
         f = SeqRecordWrapper._func_by_name(name)
@@ -71,23 +87,11 @@ def main():
     it = map(map_func, filter(filter_func, f))
     if args.head:
         it = islice(it, args.head)
-    # if args.offset:
-    #     it = islice(it, 0, args.offset)
 
     if args.tail:
         it = iter(collections.deque(it, maxlen=args.tail))
 
     if args.aggregate:
-        def count(xs):
-            return sum(1 for x in xs)
-
-        def mean(xs):
-            s = 0
-            c = 0
-            for x in xs:
-                s += x
-                c += 1
-            return s / c
         agg_func = eval(compile(args.aggregate, "<string>", "eval"), None, dict(count=count, mean=mean))
         print(args.aggregate, agg_func(it))
     else:
