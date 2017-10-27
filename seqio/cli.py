@@ -1,7 +1,9 @@
 import argparse
+import collections
 from functools import lru_cache
 from sys import stdin, stdout
 from Bio import SeqIO, SeqRecord
+from itertools import islice
 
 
 class SeqRecordWrapper(object):
@@ -40,6 +42,9 @@ def main():
     p.add_argument('-f', '--filter')
     p.add_argument('-m', '--map')
     p.add_argument('-a', '--aggregate')
+    p.add_argument('--head', type=int)
+
+    p.add_argument('--tail', type=int)
 
     def identity(x):
         return x
@@ -64,6 +69,13 @@ def main():
     f = SeqIO.parse(args.input, args.input_format)
 
     it = map(map_func, filter(filter_func, f))
+    if args.head:
+        it = islice(it, args.head)
+    # if args.offset:
+    #     it = islice(it, 0, args.offset)
+
+    if args.tail:
+        it = iter(collections.deque(it, maxlen=args.tail))
 
     if args.aggregate:
         def count(xs):
